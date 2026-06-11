@@ -32,6 +32,7 @@ export default function ApprovalsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");
   const { data: session } = useSession();
+  const [roomFilter, setRoomFilter] = useState<string>("all");
 
   const isAdminOrGuru =
     (session?.user as any)?.role === "admin" ||
@@ -54,7 +55,10 @@ export default function ApprovalsPage() {
     fetchRooms();
   }, []);
 
-  const handleAction = async (bookingId: string, action: "approve" | "reject") => {
+  const handleAction = async (
+    bookingId: string,
+    action: "approve" | "reject",
+  ) => {
     const res = await fetch("/api/bookings/approve", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -89,9 +93,7 @@ export default function ApprovalsPage() {
   const pendingBookings = allBookings.filter(
     (b) => b.status === "pending_approval",
   );
-  const approvedBookings = allBookings.filter(
-    (b) => b.status === "approved",
-  );
+  const approvedBookings = allBookings.filter((b) => b.status === "approved");
 
   const filteredBookings =
     filter === "all"
@@ -101,7 +103,6 @@ export default function ApprovalsPage() {
         : approvedBookings;
 
   const roomNames = [...new Set(rooms.map((r) => r.name))];
-  const [roomFilter, setRoomFilter] = useState<string>("all");
 
   const displayBookings =
     roomFilter === "all"
@@ -111,8 +112,8 @@ export default function ApprovalsPage() {
   return (
     <main className="min-h-screen">
       {/* Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-amber-50 via-white to-yellow-50 border-b border-amber-100">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-200/40 via-transparent to-transparent" />
+      <div className="relative overflow-hidden bg-linear-to-br from-amber-50 via-white to-yellow-50 border-b border-amber-100">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,var(--tw-gradient-stops))] from-amber-200/40 via-transparent to-transparent" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
           <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight gradient-text animate-fade-in-up">
             Approval Center

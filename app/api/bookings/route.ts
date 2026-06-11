@@ -94,6 +94,15 @@ export async function POST(request: Request) {
       );
     }
 
+    if (token.name !== bookedBy) {
+      return NextResponse.json(
+        {
+          message: "Nama pemesan harus sesuai dengan nama pengguna yang login.",
+        },
+        { status: 403 },
+      );
+    }
+
     const start = parseTodayTime(bookingStart);
     const end = parseTodayTime(bookingEnd);
 

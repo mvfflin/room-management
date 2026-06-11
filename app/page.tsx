@@ -11,7 +11,9 @@ export default function Home() {
           <div className="text-center space-y-6">
             <div className="animate-fade-in-up inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/70 backdrop-blur-md border border-indigo-100 shadow-sm">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-xs font-semibold text-zinc-600">Sistem Manajemen Ruangan</span>
+              <span className="text-xs font-semibold text-zinc-600">
+                Sistem Manajemen Ruangan
+              </span>
             </div>
 
             <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight gradient-text animate-fade-in-up">
@@ -31,12 +33,12 @@ export default function Home() {
               >
                 Lihat Ruangan
               </Link>
-              <Link
+              {/* <Link
                 href="/login"
                 className="inline-flex items-center justify-center rounded-xl bg-white/80 backdrop-blur-md border border-zinc-200 px-8 py-3.5 text-sm font-semibold text-zinc-700 shadow-lg transition hover:bg-white active:scale-95"
               >
                 Masuk
-              </Link>
+              </Link> */}
             </div>
           </div>
         </section>
@@ -95,7 +97,9 @@ export default function Home() {
 
         <footer className="border-t border-zinc-200/60 bg-white/70 backdrop-blur-xl">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center text-sm text-zinc-400">
-            <p>© {new Date().getFullYear()} Room Management. All rights reserved.</p>
+            <p>
+              © {new Date().getFullYear()} Room Management. All rights reserved.
+            </p>
           </div>
         </footer>
       </div>
