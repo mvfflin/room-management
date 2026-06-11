@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HomeRoomsGrid } from "@/components/HomeRoomsGrid";
 
 export default function Home() {
   return (
@@ -7,9 +8,9 @@ export default function Home() {
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-purple-200/30 via-transparent to-transparent" />
 
       <div className="relative">
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32">
-          <div className="text-center space-y-6">
-            <div className="animate-fade-in-up inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/70 backdrop-blur-md border border-indigo-100 shadow-sm">
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32 flex flex-col items-center">
+          <div className="text-center space-y-6 w-full">
+            {/* <div className="animate-fade-in-up inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/70 backdrop-blur-md border border-indigo-100 shadow-sm">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-xs font-semibold text-zinc-600">
                 Sistem Manajemen Ruangan
@@ -33,13 +34,9 @@ export default function Home() {
               >
                 Lihat Ruangan
               </Link>
-              {/* <Link
-                href="/login"
-                className="inline-flex items-center justify-center rounded-xl bg-white/80 backdrop-blur-md border border-zinc-200 px-8 py-3.5 text-sm font-semibold text-zinc-700 shadow-lg transition hover:bg-white active:scale-95"
-              >
-                Masuk
-              </Link> */}
-            </div>
+            </div> */}
+
+            <HomeRoomsGrid />
           </div>
         </section>
 
@@ -95,13 +92,13 @@ export default function Home() {
           </div>
         </section> */}
 
-        <footer className="border-t border-zinc-200/60 bg-white/70 backdrop-blur-xl">
+        {/* <footer className="border-t border-zinc-200/60 bg-white/70 backdrop-blur-xl">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center text-sm text-zinc-400">
             <p>
               © {new Date().getFullYear()} Room Management. All rights reserved.
             </p>
           </div>
-        </footer>
+        </footer> */}
       </div>
     </main>
   );

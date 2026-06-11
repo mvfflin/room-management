@@ -47,44 +47,14 @@ type GridProps = {
     action: "close" | "open",
     reason?: string,
   ) => void | Promise<void>;
-  onUpdateMaxQueue?: (
+  onUpdateRoom?: (
     roomName: string,
     maxQueue: number,
+    newName?: string,
   ) => void | Promise<void>;
 };
 
-function getCardStyle(queueCount: number, maxQueue: number, isClosed?: boolean) {
-  if (isClosed) {
-    return {
-      border: "border-slate-300",
-      bg: "bg-slate-50/50",
-      dot: "bg-slate-400",
-      dotRing: "ring-slate-100",
-    };
-  }
-  if (queueCount === 0) {
-    return {
-      border: "border-emerald-200",
-      bg: "bg-emerald-50/30",
-      dot: "bg-emerald-500",
-      dotRing: "ring-emerald-100",
-    };
-  }
-  if (queueCount >= maxQueue) {
-    return {
-      border: "border-red-300",
-      bg: "bg-red-50/30",
-      dot: "bg-red-500",
-      dotRing: "ring-red-100",
-    };
-  }
-  return {
-    border: "border-amber-300",
-    bg: "bg-amber-50/30",
-    dot: "bg-amber-500",
-    dotRing: "ring-amber-100",
-  };
-}
+import { getRoomStatus } from "@/lib/roomStatus";
 
 export function RoomsGrid({
   rooms,
@@ -93,7 +63,7 @@ export function RoomsGrid({
   showBookButton = true,
   isAdminOrGuru = false,
   onToggleClose,
-  onUpdateMaxQueue,
+  onUpdateRoom,
 }: GridProps) {
   const { data: session } = useSession();
   let isAdmin: boolean;
@@ -121,7 +91,7 @@ export function RoomsGrid({
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-8">
       {rooms.map((room, index) => {
         const roomMaxQueue = room.maxQueue ?? 3;
-        const style = getCardStyle(room.queueCount, roomMaxQueue, room.isClosed);
+        const status = getRoomStatus(room);
         const isFull = room.queueCount >= roomMaxQueue;
         const isClosed = room.isClosed || false;
 
@@ -131,11 +101,11 @@ export function RoomsGrid({
             className={`animate-slide-in-scale stagger-${Math.min(index + 1, 8)}`}
           >
             <div
-              className={`relative rounded-2xl border-2 ${style.border} ${style.bg} bg-white p-5 card-hover ${isClosed ? "room-closed-card" : ""}`}
+              className={`relative rounded-2xl border-2 ${status.borderClass} ${status.bgClass} p-5 card-hover ${isClosed ? "room-closed-card" : ""}`}
             >
               {/* Status dot */}
               <div
-                className={`absolute -top-3 -left-3 w-5 h-5 rounded-full shadow-lg ring-4 ${style.dot} ${style.dotRing} ${!isClosed && room.queueCount > 0 ? "animate-pulse-soft" : ""}`}
+                className={`absolute -top-3 -left-3 w-5 h-5 rounded-full shadow-lg ring-4 ${status.dotClass} ${status.dotRingClass} ${!isClosed && room.queueCount > 0 ? "animate-pulse-soft" : ""}`}
               />
 
               <div className="flex flex-col items-center text-center">
@@ -168,14 +138,8 @@ export function RoomsGrid({
                   </div>
                 )}
 
-                <p className="mt-4 text-xs text-zinc-400 font-medium uppercase tracking-wider">
-                  {isClosed
-                    ? "Ditutup — Maintenance"
-                    : room.queueCount === 0
-                      ? "Siap pakai"
-                      : isFull
-                        ? "Antrean penuh"
-                        : "Ada antrean"}
+                <p className={`mt-4 text-xs font-medium uppercase tracking-wider ${status.textClass}`}>
+                  {status.label}
                 </p>
 
                 {/* Book button — show if not full, not closed, and allowed */}
@@ -214,11 +178,11 @@ export function RoomsGrid({
                         onClose={onToggleClose}
                       />
                     )}
-                    {onUpdateMaxQueue && (
+                    {onUpdateRoom && (
                       <RoomSettingsForm
                         roomName={room.name}
                         currentMaxQueue={roomMaxQueue}
-                        onUpdate={onUpdateMaxQueue}
+                        onUpdate={onUpdateRoom}
                       />
                     )}
                   </div>
@@ -303,12 +267,13 @@ function CloseRoomForm({ roomName, onClose }: CloseRoomFormProps) {
 type RoomSettingsFormProps = {
   roomName: string;
   currentMaxQueue: number;
-  onUpdate: (roomName: string, maxQueue: number) => void | Promise<void>;
+  onUpdate: (roomName: string, maxQueue: number, newName?: string) => void | Promise<void>;
 };
 
 function RoomSettingsForm({ roomName, currentMaxQueue, onUpdate }: RoomSettingsFormProps) {
   const [showForm, setShowForm] = useState(false);
   const [maxQueue, setMaxQueue] = useState(currentMaxQueue.toString());
+  const [newName, setNewName] = useState(roomName);
 
   if (!showForm) {
     return (
@@ -328,12 +293,22 @@ function RoomSettingsForm({ roomName, currentMaxQueue, onUpdate }: RoomSettingsF
         e.preventDefault();
         const max = parseInt(maxQueue, 10);
         if (isNaN(max) || max < 1) return;
-        onUpdate(roomName, max);
+        onUpdate(roomName, max, newName.trim());
         setShowForm(false);
       }}
       className="w-full rounded-xl border border-indigo-100 bg-indigo-50/50 p-3 space-y-3"
     >
       <div>
+        <label className="block text-xs font-semibold text-indigo-800 mb-1.5 text-left">
+          Nama Ruangan
+        </label>
+        <input
+          type="text"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 mb-3"
+          required
+        />
         <label className="block text-xs font-semibold text-indigo-800 mb-1.5 text-left">
           Maksimal Antrean
         </label>
@@ -358,6 +333,7 @@ function RoomSettingsForm({ roomName, currentMaxQueue, onUpdate }: RoomSettingsF
           onClick={() => {
             setShowForm(false);
             setMaxQueue(currentMaxQueue.toString());
+            setNewName(roomName);
           }}
           className="flex-1 rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-700 shadow-sm transition hover:bg-indigo-50 active:scale-95"
         >

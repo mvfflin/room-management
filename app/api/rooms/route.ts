@@ -122,7 +122,7 @@ export async function PATCH(request: Request) {
   try {
     await connectDB();
     const body = await request.json();
-    const { name, maxQueue } = body;
+    const { name, maxQueue, newName } = body;
 
     if (!name) {
       return NextResponse.json(
@@ -144,6 +144,18 @@ export async function PATCH(request: Request) {
         { message: "Ruangan tidak ditemukan" },
         { status: 404 },
       );
+    }
+
+    if (newName && newName !== name) {
+      const exists = await Room.findOne({ name: newName });
+      if (exists) {
+        return NextResponse.json(
+          { message: "Nama ruangan sudah digunakan" },
+          { status: 409 },
+        );
+      }
+      room.name = newName;
+      await Booking.updateMany({ roomId: room._id }, { $set: { roomName: newName } });
     }
 
     if (maxQueue !== undefined) {

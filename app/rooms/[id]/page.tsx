@@ -27,6 +27,8 @@ type RoomDetails = {
   bookings: BookingItem[];
 };
 
+import { getRoomStatus } from "@/lib/roomStatus";
+
 export default function RoomDetailsPage({
   params,
 }: {
@@ -119,17 +121,18 @@ export default function RoomDetailsPage({
   }
 
   const isFull = room.queueCount >= room.maxQueue;
+  const status = getRoomStatus(room);
 
   return (
     <main className="min-h-screen mt-[-20px] bg-zinc-50">
-      <div className="bg-indigo-600 pb-32 pt-24">
+      <div className={`${status.solidBgClass} pb-32 pt-24 transition-colors duration-500`}>
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <Link
-            href="/rooms"
-            className="inline-flex items-center text-indigo-100 hover:text-white transition-colors mb-6 text-sm font-medium"
+          <button
+            onClick={() => { history.back() }}
+            className="inline-flex items-center text-white/80 hover:text-white transition-colors mb-6 text-sm font-medium cursor-pointer"
           >
             ← Kembali ke daftar ruangan
-          </Link>
+          </button>
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div>
               <h1 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight">
@@ -156,7 +159,7 @@ export default function RoomDetailsPage({
                           ? "⛔ Antrean Penuh"
                           : "⚠️ Sudah Di Reservasi"}
                     </span>
-                    <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-sm font-medium text-indigo-100 backdrop-blur-sm border border-white/20">
+                    <span className="inline-flex items-center rounded-full bg-white/20 px-3 py-1 text-sm font-medium text-white backdrop-blur-sm border border-white/30">
                       Antrean: {room.queueCount} / {room.maxQueue}
                     </span>
                   </>
