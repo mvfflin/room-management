@@ -34,6 +34,7 @@ export default function RoomsPage() {
     type: "success" | "warning" | "error";
     message: string;
   } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const { data: session, status: sessionStatus } = useSession();
   const userRole = (session?.user as any)?.role as string | undefined;
   const canBook = !!userRole && BOOKING_ALLOWED_ROLES.includes(userRole);
@@ -158,6 +159,30 @@ export default function RoomsPage() {
     await fetchRooms();
   };
 
+  const handleUpdateMaxQueue = async (roomName: string, maxQueue: number) => {
+    const res = await fetch("/api/rooms", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: roomName, maxQueue }),
+    });
+
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { message?: string };
+      setNotification({
+        type: "error",
+        message: data.message || "Gagal memperbarui maksimal antrean",
+      });
+      return;
+    }
+
+    setNotification({
+      type: "success",
+      message: `Maksimal antrean ruangan "${roomName}" berhasil diubah menjadi ${maxQueue}.`,
+    });
+
+    await fetchRooms();
+  };
+
   return (
     <main className="min-h-screen">
       <div className="relative overflow-hidden bg-gradient-to-br from-indigo-50 via-white to-purple-50 border-b border-indigo-100">
@@ -241,14 +266,49 @@ export default function RoomsPage() {
             </div>
           </div>
         )}
+
+        {/* Search Bar */}
+        <div className="mb-6 relative max-w-md animate-fade-in stagger-4">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg
+              className="h-5 w-5 text-zinc-400"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                fillRule="evenodd"
+                d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </div>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Cari ruangan berdasarkan nama..."
+            className="block w-full pl-10 pr-3 py-2.5 border border-indigo-200 rounded-2xl leading-5 bg-white/80 backdrop-blur-sm placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-all shadow-sm"
+          />
+        </div>
+
         <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-zinc-200/60 shadow-2xl shadow-indigo-100/50 overflow-hidden">
           <RoomsGrid
-            rooms={rooms}
+            rooms={rooms.filter((room) => {
+              const query = searchQuery.toLowerCase();
+              const matchName = room.name.toLowerCase().includes(query);
+              const matchBooking = room.bookings.some((b) =>
+                b.bookedFor.toLowerCase().includes(query)
+              );
+              return matchName || matchBooking;
+            })}
             loading={loading}
             onBook={canBook ? handleBook : undefined}
             showBookButton={canBook}
             isAdminOrGuru={isAdminOrGuru}
             onToggleClose={isAdminOrGuru ? handleToggleClose : undefined}
+            onUpdateMaxQueue={isAdminOrGuru ? handleUpdateMaxQueue : undefined}
           />
         </div>
       </div>

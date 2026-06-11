@@ -7,6 +7,11 @@ const RoomSchema = new Schema({
   closedReason: { type: String, default: "" },
 });
 
-const Room = mongoose.models.Room || mongoose.model("Room", RoomSchema);
+// Force recompile during development so schema changes take effect
+if (mongoose.models.Room) {
+  delete mongoose.models.Room;
+}
+
+const Room = mongoose.model("Room", RoomSchema);
 
 export default Room;

@@ -43,7 +43,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="border-t border-indigo-100/60 bg-white/50 backdrop-blur-2xl">
+        {/* <section className="border-t border-indigo-100/60 bg-white/50 backdrop-blur-2xl">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
             <div className="text-center mb-14">
               <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-zinc-900">
@@ -93,7 +93,7 @@ export default function Home() {
               ))}
             </div>
           </div>
-        </section>
+        </section> */}
 
         <footer className="border-t border-zinc-200/60 bg-white/70 backdrop-blur-xl">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center text-sm text-zinc-400">

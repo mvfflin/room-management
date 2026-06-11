@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { RoomsGrid } from "@/components/RoomsGrid";
 import BookingList from "@/components/BookingList";
 
@@ -32,6 +33,7 @@ export default function AdminRoomsPage() {
     type: "success" | "warning" | "error";
     message: string;
   } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const { data: session } = useSession();
 
   const isAdmin = (session?.user as any)?.role === "admin";
@@ -138,7 +140,31 @@ export default function AdminRoomsPage() {
     await fetchRooms();
   };
 
-  if (!isAdmin) {
+  const handleUpdateMaxQueue = async (roomName: string, maxQueue: number) => {
+    const res = await fetch("/api/rooms", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: roomName, maxQueue }),
+    });
+
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { message?: string };
+      setNotification({
+        type: "error",
+        message: data.message || "Gagal memperbarui maksimal antrean",
+      });
+      return;
+    }
+
+    setNotification({
+      type: "success",
+      message: `Maksimal antrean ruangan "${roomName}" berhasil diubah menjadi ${maxQueue}.`,
+    });
+
+    await fetchRooms();
+  };
+
+  if (!isAdminOrGuru) {
     return (
       <main className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -293,18 +319,52 @@ export default function AdminRoomsPage() {
           </div>
         )}
 
-        {/* All Rooms Grid */}
+        {/* Search Bar & All Rooms Grid */}
         <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-zinc-200/60 shadow-2xl shadow-rose-100/50 overflow-hidden">
+          <div className="p-6 border-b border-zinc-200/60 bg-zinc-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <h3 className="text-lg font-bold text-zinc-800">Daftar Ruangan</h3>
+            <div className="relative max-w-sm w-full">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg
+                  className="h-5 w-5 text-zinc-400"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari ruangan..."
+                className="block w-full pl-10 pr-3 py-2 border border-zinc-200 rounded-xl leading-5 bg-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 sm:text-sm transition-all"
+              />
+            </div>
+          </div>
           <RoomsGrid
-            rooms={rooms}
+            rooms={rooms.filter((room) => {
+              const query = searchQuery.toLowerCase();
+              const matchName = room.name.toLowerCase().includes(query);
+              const matchBooking = room.bookings.some((b) =>
+                b.bookedFor.toLowerCase().includes(query)
+              );
+              return matchName || matchBooking;
+            })}
             loading={loading}
             showBookButton={false}
             isAdminOrGuru={isAdminOrGuru}
             onToggleClose={handleToggleClose}
+            onUpdateMaxQueue={handleUpdateMaxQueue}
           />
 
           {/* Booked rooms with cancel actions */}
-          {activeBookings.length > 0 && (
+          {/* {activeBookings.length > 0 && (
             <div className="px-8 pb-8">
               <p className="text-sm text-zinc-500 mb-3 font-medium">
                 Booking Aktif — Kelola antrean per ruangan:
@@ -321,17 +381,25 @@ export default function AdminRoomsPage() {
                         {room.name}
                       </h4>
                       <BookingList
-                        bookings={room.bookings}
+                        bookings={room.bookings.slice(0, 3)}
                         showActions={true}
                         onApprove={handleApprove}
                         onReject={handleReject}
                         onCancel={handleCancelBooking}
                       />
+                      {room.bookings.length > 3 && room._id && (
+                        <Link
+                          href={`/admin/rooms/${room._id}`}
+                          className="mt-3 block text-center text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors bg-indigo-50/50 py-2 rounded-lg"
+                        >
+                          Kelola {room.bookings.length - 3} antrean lainnya di detail ruangan &rarr;
+                        </Link>
+                      )}
                     </div>
                   ))}
               </div>
             </div>
-          )}
+          )} */}
         </div>
       </div>
     </main>

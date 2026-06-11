@@ -21,7 +21,10 @@ const BookingSchema = new Schema({
 BookingSchema.index({ roomId: 1, bookingStart: 1, bookingEnd: 1 });
 BookingSchema.index({ status: 1 });
 
-const Booking =
-  mongoose.models.Booking || mongoose.model("Booking", BookingSchema);
+if (mongoose.models.Booking) {
+  delete mongoose.models.Booking;
+}
+
+const Booking = mongoose.model("Booking", BookingSchema);
 
 export default Booking;

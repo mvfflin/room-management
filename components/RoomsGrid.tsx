@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import QueueBadge from "./QueueBadge";
 import BookingList from "./BookingList";
 import DatePicker from "./DatePicker";
 import TimePicker from "./TimePicker";
+import BookForm from "./BookForm";
+import { useSession } from "next-auth/react";
 
 type BookingItem = {
   _id: string;
@@ -43,6 +46,10 @@ type GridProps = {
     roomName: string,
     action: "close" | "open",
     reason?: string,
+  ) => void | Promise<void>;
+  onUpdateMaxQueue?: (
+    roomName: string,
+    maxQueue: number,
   ) => void | Promise<void>;
 };
 
@@ -86,7 +93,14 @@ export function RoomsGrid({
   showBookButton = true,
   isAdminOrGuru = false,
   onToggleClose,
+  onUpdateMaxQueue,
 }: GridProps) {
+  const { data: session } = useSession();
+  let isAdmin: boolean;
+  if (session) {
+    isAdmin = (session?.user as any).role === "admin" || (session?.user as any).role === "guru"
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -142,7 +156,15 @@ export function RoomsGrid({
                 {/* Active bookings list — hide when closed */}
                 {!isClosed && room.bookings.length > 0 && (
                   <div className="mt-3 w-full">
-                    <BookingList bookings={room.bookings} />
+                    <BookingList bookings={room.bookings.slice(0, 3)} />
+                    {room.bookings.length > 3 && room._id && (
+                      <Link
+                        href={isAdmin ? `/admin/rooms/${room._id}` : `/rooms/${room._id}`}
+                        className="mt-2 inline-block text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:underline transition-colors"
+                      >
+                        Lihat {room.bookings.length - 3} antrean lainnya...
+                      </Link>
+                    )}
                   </div>
                 )}
 
@@ -177,7 +199,7 @@ export function RoomsGrid({
 
                 {/* Close/Open toggle — only for admin/guru */}
                 {isAdminOrGuru && onToggleClose && (
-                  <div className="mt-4 w-full">
+                  <div className="mt-4 w-full flex flex-col gap-2">
                     {isClosed ? (
                       <button
                         type="button"
@@ -190,6 +212,13 @@ export function RoomsGrid({
                       <CloseRoomForm
                         roomName={room.name}
                         onClose={onToggleClose}
+                      />
+                    )}
+                    {onUpdateMaxQueue && (
+                      <RoomSettingsForm
+                        roomName={room.name}
+                        currentMaxQueue={roomMaxQueue}
+                        onUpdate={onUpdateMaxQueue}
                       />
                     )}
                   </div>
@@ -269,48 +298,26 @@ function CloseRoomForm({ roomName, onClose }: CloseRoomFormProps) {
   );
 }
 
-/* ========== Book Form (existing) ========== */
+/* ========== Room Settings Form ========== */
 
-type BookFormProps = {
-  room: Room;
-  onBook?: (
-    roomName: string,
-    bookedFor: string,
-    startTime: string,
-    endTime: string,
-    bookingDate: string,
-  ) => void | Promise<void>;
+type RoomSettingsFormProps = {
+  roomName: string;
+  currentMaxQueue: number;
+  onUpdate: (roomName: string, maxQueue: number) => void | Promise<void>;
 };
 
-function BookForm({ room, onBook }: BookFormProps) {
-  const [bookingRoom, setBookingRoom] = useState<string | null>(null);
-  const [bookedFor, setBookedFor] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [bookingDate, setBookingDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split("T")[0];
-  });
+function RoomSettingsForm({ roomName, currentMaxQueue, onUpdate }: RoomSettingsFormProps) {
+  const [showForm, setShowForm] = useState(false);
+  const [maxQueue, setMaxQueue] = useState(currentMaxQueue.toString());
 
-  if (!onBook) return null;
-
-  const hasQueue = room.queueCount > 0;
-
-  // Min date = today
-  const minDate = new Date().toISOString().split("T")[0];
-
-  if (bookingRoom !== room.name) {
+  if (!showForm) {
     return (
       <button
         type="button"
-        onClick={() => setBookingRoom(room.name)}
-        className={`w-full rounded-xl px-3 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:opacity-90 active:scale-95 ${
-          hasQueue
-            ? "bg-gradient-to-r from-amber-500 to-orange-500 shadow-amber-500/30"
-            : "bg-gradient-to-r from-emerald-500 to-teal-500 shadow-emerald-500/30"
-        }`}
+        onClick={() => setShowForm(true)}
+        className="w-full rounded-xl border-2 border-dashed border-indigo-200 px-3 py-2 text-sm font-semibold text-indigo-500 transition hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 active:scale-95 flex items-center justify-center gap-2"
       >
-        {hasQueue ? "Masuk Antrean" : "Book Now"}
+        <span>⚙️</span> Pengaturan
       </button>
     );
   }
@@ -319,81 +326,40 @@ function BookForm({ room, onBook }: BookFormProps) {
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        if (!bookedFor.trim() || !startTime || !endTime || !bookingDate) return;
-        onBook(room.name, bookedFor.trim(), startTime, endTime, bookingDate);
-        setBookedFor("");
-        setStartTime("");
-        setEndTime("");
-        setBookingDate(minDate);
-        setBookingRoom(null);
+        const max = parseInt(maxQueue, 10);
+        if (isNaN(max) || max < 1) return;
+        onUpdate(roomName, max);
+        setShowForm(false);
       }}
-      className="w-full space-y-2"
+      className="w-full rounded-xl border border-indigo-100 bg-indigo-50/50 p-3 space-y-3"
     >
-      {hasQueue && (
-        <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
-          ⚠️ Ruangan sudah ada {room.queueCount} antrean. Pemesanan Anda akan
-          masuk antrian.
-        </div>
-      )}
-      <input
-        value={bookedFor}
-        onChange={(e) => setBookedFor(e.target.value)}
-        placeholder="Keperluan booking..."
-        className="w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all"
-        required
-      />
       <div>
-        <label className="block text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">
-          Tanggal
+        <label className="block text-xs font-semibold text-indigo-800 mb-1.5 text-left">
+          Maksimal Antrean
         </label>
-        <DatePicker
-          value={bookingDate}
-          onChange={(val) => setBookingDate(val)}
-          min={minDate}
-          placeholder="Pilih tanggal booking"
+        <input
+          type="number"
+          min="1"
+          value={maxQueue}
+          onChange={(e) => setMaxQueue(e.target.value)}
+          className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+          required
         />
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="block text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">
-            Jam Mulai
-          </label>
-          <TimePicker
-            value={startTime}
-            onChange={(val) => setStartTime(val)}
-            placeholder="Mulai"
-          />
-        </div>
-        <div>
-          <label className="block text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">
-            Jam Selesai
-          </label>
-          <TimePicker
-            value={endTime}
-            onChange={(val) => setEndTime(val)}
-            min={startTime || undefined}
-            placeholder="Selesai"
-          />
-        </div>
-      </div>
-      <div className="flex gap-2 pt-1">
+      <div className="flex gap-2">
         <button
           type="submit"
-          disabled={!bookedFor.trim() || !startTime || !endTime || !bookingDate}
-          className="flex-1 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+          className="flex-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700 active:scale-95"
         >
-          {hasQueue ? "Masuk Antrean" : "✓ Pesan Sekarang"}
+          Simpan
         </button>
         <button
           type="button"
           onClick={() => {
-            setBookingRoom(null);
-            setBookedFor("");
-            setStartTime("");
-            setEndTime("");
-            setBookingDate(minDate);
+            setShowForm(false);
+            setMaxQueue(currentMaxQueue.toString());
           }}
-          className="rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm font-semibold text-zinc-600 shadow-sm transition hover:bg-zinc-50 active:scale-95"
+          className="flex-1 rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-700 shadow-sm transition hover:bg-indigo-50 active:scale-95"
         >
           Batal
         </button>

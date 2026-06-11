@@ -67,7 +67,7 @@ export default function BookingList({
       {bookings.map((booking, idx) => (
         <div key={booking._id} className="booking-item">
           <div className="booking-item__header">
-            <span className="booking-item__position">#{booking.queuePosition}</span>
+            <span className="booking-item__position">#{idx + 1}</span>
             <StatusBadge status={booking.status} />
           </div>
           <p className="booking-item__purpose">{booking.bookedFor}</p>

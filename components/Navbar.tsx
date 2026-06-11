@@ -69,8 +69,14 @@ export default function Navbar() {
               Rooms
             </Link>
 
-            {isAdmin && (
+            {isAdminOrGuru && (
               <>
+                <Link
+                  href="/admin/createrooms"
+                  className="nav-link relative px-4 py-2 text-gray-300 hover:text-white transition-colors duration-300"
+                >
+                  Buat Ruangan
+                </Link>
                 <Link
                   href="/admin/rooms"
                   className="nav-link relative px-4 py-2 text-gray-300 hover:text-white transition-colors duration-300"
@@ -78,28 +84,19 @@ export default function Navbar() {
                   Admin Rooms
                 </Link>
                 <Link
-                  href="/admin/createrooms"
+                  href="/admin/approvals"
                   className="nav-link relative px-4 py-2 text-gray-300 hover:text-white transition-colors duration-300"
                 >
-                  Buat Ruangan
+                  <span className="flex items-center gap-1.5">
+                    Approval
+                    {pendingCount > 0 && (
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-[10px] font-bold text-white animate-pulse">
+                        {pendingCount}
+                      </span>
+                    )}
+                  </span>
                 </Link>
               </>
-            )}
-
-            {isAdminOrGuru && (
-              <Link
-                href="/admin/approvals"
-                className="nav-link relative px-4 py-2 text-gray-300 hover:text-white transition-colors duration-300"
-              >
-                <span className="flex items-center gap-1.5">
-                  Approval
-                  {pendingCount > 0 && (
-                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-[10px] font-bold text-white animate-pulse">
-                      {pendingCount}
-                    </span>
-                  )}
-                </span>
-              </Link>
             )}
 
             {status === "loading" ? (
@@ -226,8 +223,15 @@ export default function Navbar() {
               Rooms
             </Link>
 
-            {isAdmin && (
+            {isAdminOrGuru && (
               <>
+                <Link
+                  href="/admin/createrooms"
+                  className="block text-gray-300 hover:text-white hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium transition-colors"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Buat Ruangan
+                </Link>
                 <Link
                   href="/admin/rooms"
                   className="block text-gray-300 hover:text-white hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium transition-colors"
@@ -236,28 +240,18 @@ export default function Navbar() {
                   Admin Rooms
                 </Link>
                 <Link
-                  href="/admin/createrooms"
-                  className="block text-gray-300 hover:text-white hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium transition-colors"
+                  href="/admin/approvals"
+                  className="flex items-center gap-2 text-gray-300 hover:text-white hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium transition-colors"
                   onClick={() => setIsOpen(false)}
                 >
-                  Buat Ruangan
+                  Approval
+                  {pendingCount > 0 && (
+                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-[10px] font-bold text-white">
+                      {pendingCount}
+                    </span>
+                  )}
                 </Link>
               </>
-            )}
-
-            {isAdminOrGuru && (
-              <Link
-                href="/admin/approvals"
-                className="flex items-center gap-2 text-gray-300 hover:text-white hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium transition-colors"
-                onClick={() => setIsOpen(false)}
-              >
-                Approval
-                {pendingCount > 0 && (
-                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-[10px] font-bold text-white">
-                    {pendingCount}
-                  </span>
-                )}
-              </Link>
             )}
 
             <div className="pt-2 px-3">

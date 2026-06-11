@@ -12,7 +12,9 @@ export default function CreateRoomsPage() {
     text: string;
   } | null>(null);
 
-  const isAdmin = (session?.user as any)?.role === "admin";
+  const isAdminOrGuru =
+    (session?.user as any)?.role === "admin" ||
+    (session?.user as any)?.role === "guru";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +52,7 @@ export default function CreateRoomsPage() {
     setName("");
   };
 
-  if (!isAdmin) {
+  if (!isAdminOrGuru) {
     return (
       <main className="min-h-screen flex items-center justify-center">
         <div className="text-center">
