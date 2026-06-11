@@ -199,6 +199,10 @@ body {
   @apply bg-red-100 text-red-700;
 }
 
+.queue-badge--closed {
+  @apply bg-slate-100 text-slate-600;
+}
+
 .queue-dot {
   @apply w-2 h-2 rounded-full shrink-0;
 }
@@ -215,6 +219,23 @@ body {
 .queue-dot--red {
   @apply bg-red-500;
   animation: pulseDot 1.5s ease-in-out infinite;
+}
+
+.queue-dot--slate {
+  @apply bg-slate-400;
+}
+
+/* ===== Closed Room Card ===== */
+
+.room-closed-card {
+  opacity: 0.75;
+  filter: grayscale(30%);
+  transition: all 0.3s ease;
+}
+
+.room-closed-card:hover {
+  opacity: 0.9;
+  filter: grayscale(10%);
 }
 
 /* ===== Booking List Styles ===== */

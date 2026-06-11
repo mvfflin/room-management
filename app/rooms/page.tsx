@@ -21,6 +21,8 @@ type BookingItem = {
 type Room = {
   _id?: string;
   name: string;
+  isClosed?: boolean;
+  closedReason?: string;
   queueCount: number;
   bookings: BookingItem[];
 };
@@ -36,6 +38,7 @@ export default function RoomsPage() {
   const userRole = (session?.user as any)?.role as string | undefined;
   const canBook = !!userRole && BOOKING_ALLOWED_ROLES.includes(userRole);
   const isAutoApproved = !!userRole && AUTO_APPROVE_ROLES.includes(userRole);
+  const isAdminOrGuru = !!userRole && AUTO_APPROVE_ROLES.includes(userRole);
 
   const fetchRooms = async () => {
     try {
@@ -120,6 +123,39 @@ export default function RoomsPage() {
     await fetchRooms();
   };
 
+  const handleToggleClose = async (
+    roomName: string,
+    action: "close" | "open",
+    reason?: string,
+  ) => {
+    const res = await fetch("/api/rooms/close", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roomName, action, reason }),
+    });
+
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as {
+        message?: string;
+      };
+      setNotification({
+        type: "error",
+        message: data.message || "Gagal mengubah status ruangan",
+      });
+      return;
+    }
+
+    setNotification({
+      type: "success",
+      message:
+        action === "close"
+          ? `Ruangan "${roomName}" berhasil ditutup.`
+          : `Ruangan "${roomName}" berhasil dibuka kembali.`,
+    });
+
+    await fetchRooms();
+  };
+
   return (
     <main className="min-h-screen">
       <div className="relative overflow-hidden bg-gradient-to-br from-indigo-50 via-white to-purple-50 border-b border-indigo-100">
@@ -153,6 +189,10 @@ export default function RoomsPage() {
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-red-500" />
               <span className="text-xs text-zinc-600">Penuh</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-slate-400" />
+              <span className="text-xs text-zinc-600">Ditutup</span>
             </div>
           </div>
         </div>
@@ -205,6 +245,8 @@ export default function RoomsPage() {
             loading={loading}
             onBook={canBook ? handleBook : undefined}
             showBookButton={canBook}
+            isAdminOrGuru={isAdminOrGuru}
+            onToggleClose={isAdminOrGuru ? handleToggleClose : undefined}
           />
         </div>
       </div>

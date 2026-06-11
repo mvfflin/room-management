@@ -3,12 +3,23 @@
 type QueueBadgeProps = {
   queueCount: number;
   maxQueue?: number;
+  isClosed?: boolean;
 };
 
 export default function QueueBadge({
   queueCount,
   maxQueue = 3,
+  isClosed = false,
 }: QueueBadgeProps) {
+  if (isClosed) {
+    return (
+      <div className="queue-badge queue-badge--closed">
+        <span className="queue-dot queue-dot--slate" />
+        <span>🔒 Ditutup</span>
+      </div>
+    );
+  }
+
   if (queueCount === 0) {
     return (
       <div className="queue-badge queue-badge--available">

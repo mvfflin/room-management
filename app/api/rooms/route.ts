@@ -23,6 +23,8 @@ export async function GET() {
       return {
         _id: room._id,
         name: room.name,
+        isClosed: room.isClosed || false,
+        closedReason: room.closedReason || "",
         queueCount: roomBookings.length,
         bookings: roomBookings.map((b) => ({
           _id: b._id,

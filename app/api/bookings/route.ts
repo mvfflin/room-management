@@ -113,6 +113,16 @@ export async function POST(request: Request) {
       );
     }
 
+    // Cek apakah ruangan sedang ditutup
+    if (room.isClosed) {
+      return NextResponse.json(
+        {
+          message: `Ruangan "${roomName}" sedang ditutup${room.closedReason ? ` (${room.closedReason})` : ""}. Tidak dapat melakukan pemesanan.`,
+        },
+        { status: 403 },
+      );
+    }
+
     // Cari booking yang overlap pada slot waktu yang sama
     const overlappingBookings = await Booking.find({
       roomId: room._id,

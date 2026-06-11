@@ -19,6 +19,8 @@ type BookingItem = {
 type Room = {
   _id?: string;
   name: string;
+  isClosed?: boolean;
+  closedReason?: string;
   queueCount: number;
   bookings: BookingItem[];
 };
@@ -26,9 +28,16 @@ type Room = {
 export default function AdminRoomsPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(false);
+  const [notification, setNotification] = useState<{
+    type: "success" | "warning" | "error";
+    message: string;
+  } | null>(null);
   const { data: session } = useSession();
 
   const isAdmin = (session?.user as any)?.role === "admin";
+  const isAdminOrGuru =
+    (session?.user as any)?.role === "admin" ||
+    (session?.user as any)?.role === "guru";
 
   const fetchRooms = async () => {
     setLoading(true);
@@ -47,6 +56,14 @@ export default function AdminRoomsPage() {
   useEffect(() => {
     fetchRooms();
   }, []);
+
+  // Auto-dismiss notification
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   const handleApprove = async (bookingId: string) => {
     const res = await fetch("/api/bookings/approve", {
@@ -88,6 +105,39 @@ export default function AdminRoomsPage() {
     }
   };
 
+  const handleToggleClose = async (
+    roomName: string,
+    action: "close" | "open",
+    reason?: string,
+  ) => {
+    const res = await fetch("/api/rooms/close", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roomName, action, reason }),
+    });
+
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as {
+        message?: string;
+      };
+      setNotification({
+        type: "error",
+        message: data.message || "Gagal mengubah status ruangan",
+      });
+      return;
+    }
+
+    setNotification({
+      type: "success",
+      message:
+        action === "close"
+          ? `Ruangan "${roomName}" berhasil ditutup.`
+          : `Ruangan "${roomName}" berhasil dibuka kembali.`,
+    });
+
+    await fetchRooms();
+  };
+
   if (!isAdmin) {
     return (
       <main className="min-h-screen flex items-center justify-center">
@@ -107,6 +157,7 @@ export default function AdminRoomsPage() {
     (b) => b.status === "pending_approval",
   );
   const activeBookings = allBookings.filter((b) => b.status === "approved");
+  const closedRooms = rooms.filter((r) => r.isClosed);
 
   return (
     <main className="min-h-screen">
@@ -121,7 +172,7 @@ export default function AdminRoomsPage() {
           </p>
 
           {/* Stats */}
-          <div className="mt-8 inline-flex items-center gap-6 animate-fade-in stagger-2">
+          <div className="mt-8 inline-flex items-center gap-6 animate-fade-in stagger-2 flex-wrap justify-center">
             <div className="flex flex-col items-center px-5 py-3 rounded-2xl bg-white/70 backdrop-blur-md border border-zinc-200/60 shadow-sm">
               <span className="text-2xl font-bold text-zinc-900">
                 {rooms.length}
@@ -140,9 +191,40 @@ export default function AdminRoomsPage() {
               </span>
               <span className="text-xs text-zinc-500 mt-1">Booking Aktif</span>
             </div>
+            <div className="flex flex-col items-center px-5 py-3 rounded-2xl bg-white/70 backdrop-blur-md border border-slate-300/60 shadow-sm">
+              <span className="text-2xl font-bold text-slate-600">
+                {closedRooms.length}
+              </span>
+              <span className="text-xs text-zinc-500 mt-1">Ruangan Ditutup</span>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Notification */}
+      {notification && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+          <div
+            className={`notification notification--${notification.type} animate-fade-in-up`}
+          >
+            <span>
+              {notification.type === "success"
+                ? "✅"
+                : notification.type === "warning"
+                  ? "⚠️"
+                  : "❌"}
+            </span>
+            <p>{notification.message}</p>
+            <button
+              type="button"
+              onClick={() => setNotification(null)}
+              className="ml-auto text-current opacity-60 hover:opacity-100 transition"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 space-y-8">
         {/* Pending Approvals Section */}
@@ -227,6 +309,8 @@ export default function AdminRoomsPage() {
             rooms={rooms}
             loading={loading}
             showBookButton={false}
+            isAdminOrGuru={isAdminOrGuru}
+            onToggleClose={handleToggleClose}
           />
 
           {/* Booked rooms with cancel actions */}
