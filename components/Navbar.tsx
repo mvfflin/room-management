@@ -98,6 +98,14 @@ export default function Navbar() {
                 </Link>
               </>
             )}
+            {isAdmin && (
+              <Link
+                href="/admin/users"
+                className="nav-link relative px-4 py-2 text-gray-300 hover:text-white transition-colors duration-300"
+              >
+                Kelola User
+              </Link>
+            )}
 
             {status === "loading" ? (
               <div className="w-8 h-8 rounded-full bg-gray-700 animate-pulse ml-2" />
@@ -252,6 +260,16 @@ export default function Navbar() {
                   )}
                 </Link>
               </>
+            )}
+            
+            {isAdmin && (
+              <Link
+                href="/admin/users"
+                className="block text-gray-300 hover:text-white hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium transition-colors"
+                onClick={() => setIsOpen(false)}
+              >
+                Kelola User
+              </Link>
             )}
 
             <div className="pt-2 px-3">
