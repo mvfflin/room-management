@@ -3,6 +3,7 @@ import { getToken } from "next-auth/jwt";
 import connectDB from "@/lib/connectDB";
 import Booking from "@/models/Booking";
 import Room from "@/models/Room";
+import { redis } from "@/lib/redis";
 
 /** Roles yang diizinkan membuat booking */
 const BOOKING_ALLOWED_ROLES = ["admin", "guru", "ketua_ekskul"];
@@ -203,6 +204,8 @@ export async function POST(request: Request) {
       needsApproval,
     });
 
+    await redis.del("rooms_cache");
+
     return NextResponse.json(booking, { status: 201 });
   } catch (error) {
     console.error("Error creating booking:", error);
@@ -231,6 +234,7 @@ export async function DELETE(request: Request) {
     }
 
     await Booking.findByIdAndDelete(id);
+    await redis.del("rooms_cache");
 
     return NextResponse.json(
       { message: "Booking berhasil dibatalkan" },

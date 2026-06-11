@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import connectDB from "@/lib/connectDB";
 import Room from "@/models/Room";
+import { redis } from "@/lib/redis";
 
 /** Roles yang boleh close/open ruangan */
 const ALLOWED_ROLES = ["admin", "guru"];
@@ -65,6 +66,7 @@ export async function PUT(request: Request) {
     }
 
     await room.save();
+    await redis.del("rooms_cache");
 
     return NextResponse.json({
       _id: room._id,

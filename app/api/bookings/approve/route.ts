@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import connectDB from "@/lib/connectDB";
 import Booking from "@/models/Booking";
+import { redis } from "@/lib/redis";
 
 /** Roles yang boleh approve/reject booking */
 const APPROVER_ROLES = ["admin", "guru"];
@@ -87,6 +88,8 @@ export async function PUT(request: Request) {
     booking.status = action === "approve" ? "approved" : "rejected";
     booking.needsApproval = false;
     await booking.save();
+    
+    await redis.del("rooms_cache");
 
     return NextResponse.json(booking);
   } catch (error) {

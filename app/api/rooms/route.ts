@@ -2,9 +2,15 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/connectDB";
 import Room from "@/models/Room";
 import Booking from "@/models/Booking";
+import { redis } from "@/lib/redis";
 
 export async function GET() {
   try {
+    const cachedRooms = await redis.get("rooms_cache");
+    if (cachedRooms) {
+      return NextResponse.json(cachedRooms);
+    }
+
     await connectDB();
     const rooms = await Room.find({});
     const now = new Date();
@@ -40,6 +46,8 @@ export async function GET() {
       };
     });
 
+    await redis.set("rooms_cache", roomsWithQueue, { ex: 60 });
+
     return NextResponse.json(roomsWithQueue);
   } catch (error) {
     console.error("Error fetching rooms:", error);
@@ -68,6 +76,9 @@ export async function POST(request: Request) {
       name,
       maxQueue: maxQueue && maxQueue >= 1 ? maxQueue : 3,
     });
+    
+    await redis.del("rooms_cache");
+
     return NextResponse.json(
       { _id: room._id, name: room.name, maxQueue: room.maxQueue, queueCount: 0, bookings: [] },
       { status: 201 },
@@ -101,6 +112,8 @@ export async function DELETE(request: Request) {
     }
 
     await Room.deleteOne({ name });
+    await redis.del("rooms_cache");
+    
     return NextResponse.json(
       { message: "Ruangan berhasil dihapus" },
       { status: 200 },
@@ -163,6 +176,7 @@ export async function PATCH(request: Request) {
     }
 
     await room.save();
+    await redis.del("rooms_cache");
 
     return NextResponse.json({
       _id: room._id,
