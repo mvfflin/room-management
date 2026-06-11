@@ -1,52 +1,41 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import BookNowForm from "@/components/BookNowForm";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { RoomsGrid } from "@/components/RoomsGrid";
+
+const BOOKING_ALLOWED_ROLES = ["admin", "guru", "ketua_ekskul"];
+const AUTO_APPROVE_ROLES = ["admin", "guru"];
+
+type BookingItem = {
+  _id: string;
+  bookedFor: string;
+  bookedBy: string;
+  bookingStart: string;
+  bookingEnd: string;
+  queuePosition: number;
+  status: "approved" | "pending_approval" | "rejected";
+  needsApproval: boolean;
+};
 
 type Room = {
   _id?: string;
   name: string;
-  booked: boolean;
-  bookedFor?: string;
-  bookingStart?: string;
-  bookingEnd?: string;
+  queueCount: number;
+  bookings: BookingItem[];
 };
-
-const statusConfig = {
-  available: {
-    label: "Tersedia",
-    bg: "bg-emerald-50",
-    border: "border-emerald-200",
-    dot: "bg-emerald-500",
-    dotRing: "ring-emerald-100",
-    text: "text-emerald-700",
-    badge: "bg-emerald-100 text-emerald-700",
-  },
-  booked: {
-    label: "Dibooking",
-    bg: "bg-rose-50",
-    border: "border-rose-200",
-    dot: "bg-rose-500",
-    dotRing: "ring-rose-100",
-    text: "text-rose-700",
-    badge: "bg-rose-100 text-rose-700",
-  },
-};
-
-function getTodayDate(time?: string) {
-  if (!time) return undefined;
-  const [hours, minutes] = time.split(":").map(Number);
-  const date = new Date();
-  date.setHours(hours, minutes, 0, 0);
-  return date;
-}
 
 export default function RoomsPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
-  const [bookingRoom, setBookingRoom] = useState<string | null>(null);
-
-  const timerRef = useRef<number | null>(null);
+  const [notification, setNotification] = useState<{
+    type: "success" | "warning" | "error";
+    message: string;
+  } | null>(null);
+  const { data: session, status: sessionStatus } = useSession();
+  const userRole = (session?.user as any)?.role as string | undefined;
+  const canBook = !!userRole && BOOKING_ALLOWED_ROLES.includes(userRole);
+  const isAutoApproved = !!userRole && AUTO_APPROVE_ROLES.includes(userRole);
 
   const fetchRooms = async () => {
     try {
@@ -61,79 +50,74 @@ export default function RoomsPage() {
     }
   };
 
-  const releaseExpired = () => {
-    setRooms((prev) =>
-      prev.map((room) => {
-        if (!room.booked || !room.bookingEnd) return room;
-        const end = getTodayDate(room.bookingEnd);
-        if (!end) return room;
-        const now = new Date();
-        if (now >= end) {
-          return {
-            ...room,
-            booked: false,
-            bookedFor: "",
-            bookingStart: undefined,
-            bookingEnd: undefined,
-          };
-        }
-        return room;
-      }),
-    );
-  };
-
   useEffect(() => {
     fetchRooms();
 
-    timerRef.current = window.setInterval(() => {
-      releaseExpired();
-    }, 1000);
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
+    // Refresh setiap 30 detik untuk melihat perubahan
+    const interval = setInterval(fetchRooms, 30000);
+    return () => clearInterval(interval);
   }, []);
+
+  // Auto-dismiss notification
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   const handleBook = async (
     roomName: string,
     bookedFor: string,
-    startTime?: string,
-    endTime?: string,
+    startTime: string,
+    endTime: string,
   ) => {
-    const room = rooms.find((r) => r.name === roomName);
-    if (!room) return;
+    const username =
+      (session?.user as any)?.username || session?.user?.name || "anonymous";
 
-    const start = getTodayDate(startTime);
-    const end = getTodayDate(endTime);
-
-    if (start && end && end <= start) {
-      alert("Jam selesai harus lebih besar dari jam mulai");
-      return;
-    }
-
-    const res = await fetch("/api/rooms", {
-      method: "PUT",
+    const res = await fetch("/api/bookings", {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name: roomName,
-        booked: true,
+        roomName,
         bookedFor,
+        bookedBy: username,
         bookingStart: startTime,
         bookingEnd: endTime,
       }),
     });
 
     if (!res.ok) {
-      const data = (await res.json().catch(() => ({}))) as { message?: string };
-      alert(data.message || "Gagal memesan ruangan");
+      const data = (await res.json().catch(() => ({}))) as {
+        message?: string;
+      };
+      setNotification({
+        type: "error",
+        message: data.message || "Gagal memesan ruangan",
+      });
       return;
     }
 
-    const updatedRoom = (await res.json()) as Room;
-    setRooms((prev) =>
-      prev.map((room) => (room.name === roomName ? updatedRoom : room)),
-    );
-    setBookingRoom(null);
+    const booking = await res.json();
+
+    if (booking.status === "pending_approval") {
+      setNotification({
+        type: "warning",
+        message:
+          "Pemesanan berhasil diajukan! Menunggu persetujuan dari Admin/Guru.",
+      });
+    } else {
+      setNotification({
+        type: "success",
+        message:
+          booking.queuePosition > 1
+            ? `Berhasil masuk antrean ke-${booking.queuePosition} untuk ${roomName}!`
+            : `Ruangan ${roomName} berhasil dipesan!`,
+      });
+    }
+
+    // Refresh data
+    await fetchRooms();
   };
 
   return (
@@ -155,92 +139,73 @@ export default function RoomsPage() {
               day: "numeric",
             })}
           </p>
+
+          {/* Legend */}
+          <div className="mt-6 inline-flex items-center gap-6 px-5 py-2.5 rounded-full bg-white/70 backdrop-blur-md border border-zinc-200/60 shadow-sm animate-fade-in stagger-3">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-emerald-500" />
+              <span className="text-xs text-zinc-600">Tersedia</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-amber-500" />
+              <span className="text-xs text-zinc-600">Ada Antrean</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-red-500" />
+              <span className="text-xs text-zinc-600">Penuh</span>
+            </div>
+          </div>
         </div>
       </div>
 
+      {/* Notification */}
+      {notification && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+          <div
+            className={`notification notification--${notification.type} animate-fade-in-up`}
+          >
+            <span>
+              {notification.type === "success"
+                ? "✅"
+                : notification.type === "warning"
+                  ? "⚠️"
+                  : "❌"}
+            </span>
+            <p>{notification.message}</p>
+            <button
+              type="button"
+              onClick={() => setNotification(null)}
+              className="ml-auto text-current opacity-60 hover:opacity-100 transition"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
-        <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-zinc-200/60 shadow-2xl shadow-indigo-100/50 overflow-hidden">
-          {loading ? (
-            <div className="p-8 text-center text-zinc-500">Memuat data...</div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-8">
-              {rooms.map((room, index) => {
-                const isAvailable = !room.booked;
-                const status = isAvailable
-                  ? statusConfig.available
-                  : statusConfig.booked;
-
-                return (
-                  <div
-                    key={room.name}
-                    className={`relative rounded-xl border-2 ${status.border} ${status.bg} p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-1`}
-                  >
-                    <div className="absolute -top-3 -left-3">
-                      <div
-                        className={`w-5 h-5 rounded-full ${status.dot} ring-4 ${status.dotRing} shadow-sm`}
-                      />
-                    </div>
-
-                    <div className="flex flex-col items-center text-center">
-                      <div
-                        className={`px-3 py-1 rounded-full text-xs font-semibold tracking-wide ${status.badge}`}
-                      >
-                        {status.label}
-                      </div>
-
-                      <h2 className="mt-4 text-lg font-bold text-zinc-900">
-                        {room.name}
-                      </h2>
-
-                      {room.bookedFor && (
-                        <p className="mt-2 text-sm text-zinc-500">
-                          {room.bookedFor}
-                        </p>
-                      )}
-
-                      {room.booked && room.bookingStart && room.bookingEnd && (
-                        <p className="mt-1 text-xs text-zinc-500">
-                          {new Date(room.bookingStart).getHours()}.
-                          {new Date(room.bookingStart)
-                            .getMinutes()
-                            .toString()
-                            .padStart(2, "0")}{" "}
-                          - {new Date(room.bookingEnd).getHours()}.
-                          {new Date(room.bookingEnd)
-                            .getMinutes()
-                            .toString()
-                            .padStart(2, "0")}
-                        </p>
-                      )}
-
-                      <div className="mt-5 text-xs text-zinc-400 font-medium uppercase tracking-wider">
-                        {isAvailable ? "Siap pakai" : "Sedang dipakai"}
-                      </div>
-
-                      {isAvailable && (
-                        <div className="mt-4 w-full">
-                          {bookingRoom === room.name ? (
-                            <BookNowForm
-                              roomName={room.name}
-                              onBook={handleBook}
-                              onCancel={() => setBookingRoom(null)}
-                            />
-                          ) : (
-                            <button
-                              onClick={() => setBookingRoom(room.name)}
-                              className="w-full rounded-lg bg-emerald-600 px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-95"
-                            >
-                              Book Now
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+        {/* Info untuk user yang tidak bisa booking */}
+        {sessionStatus !== "loading" && !canBook && (
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/80 backdrop-blur-sm px-5 py-4 flex items-start gap-3 animate-fade-in">
+            <span className="text-xl">🔒</span>
+            <div>
+              <p className="text-sm font-semibold text-amber-800">
+                Pemesanan ruangan terbatas
+              </p>
+              <p className="text-sm text-amber-700 mt-0.5">
+                Hanya Ketua Ekskul, Guru, atau Admin yang dapat melakukan pemesanan ruangan.
+                {!session && " Silakan login terlebih dahulu."}
+              </p>
             </div>
-          )}
+          </div>
+        )}
+        <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-zinc-200/60 shadow-2xl shadow-indigo-100/50 overflow-hidden">
+          <RoomsGrid
+            rooms={rooms}
+            loading={loading}
+            onBook={canBook ? handleBook : undefined}
+            showBookButton={canBook}
+          />
         </div>
       </div>
     </main>

@@ -3,14 +3,24 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { RoomsGrid } from "@/components/RoomsGrid";
+import BookingList from "@/components/BookingList";
+
+type BookingItem = {
+  _id: string;
+  bookedFor: string;
+  bookedBy: string;
+  bookingStart: string;
+  bookingEnd: string;
+  queuePosition: number;
+  status: "approved" | "pending_approval" | "rejected";
+  needsApproval: boolean;
+};
 
 type Room = {
   _id?: string;
   name: string;
-  booked: boolean;
-  bookedFor?: string;
-  bookingStart?: string;
-  bookingEnd?: string;
+  queueCount: number;
+  bookings: BookingItem[];
 };
 
 export default function AdminRoomsPage() {
@@ -38,33 +48,40 @@ export default function AdminRoomsPage() {
     fetchRooms();
   }, []);
 
-  const handleCancelBook = async (roomName: string) => {
-    const res = await fetch(`/api/rooms`, {
+  const handleApprove = async (bookingId: string) => {
+    const res = await fetch("/api/bookings/approve", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: roomName,
-        booked: false,
-        bookedFor: "",
-        bookingStart: null,
-        bookingEnd: null,
-      }),
+      body: JSON.stringify({ bookingId, action: "approve" }),
     });
-
     if (res.ok) {
-      setRooms((prev) =>
-        prev.map((room) =>
-          room.name === roomName
-            ? {
-                ...room,
-                booked: false,
-                bookedFor: "",
-                bookingStart: undefined,
-                bookingEnd: undefined,
-              }
-            : room,
-        ),
-      );
+      await fetchRooms();
+    } else {
+      const data = (await res.json().catch(() => ({}))) as { message?: string };
+      alert(data.message || "Gagal menyetujui booking");
+    }
+  };
+
+  const handleReject = async (bookingId: string) => {
+    const res = await fetch("/api/bookings/approve", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bookingId, action: "reject" }),
+    });
+    if (res.ok) {
+      await fetchRooms();
+    } else {
+      const data = (await res.json().catch(() => ({}))) as { message?: string };
+      alert(data.message || "Gagal menolak booking");
+    }
+  };
+
+  const handleCancelBooking = async (bookingId: string) => {
+    const res = await fetch(`/api/bookings?id=${bookingId}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
+      await fetchRooms();
     } else {
       const data = (await res.json().catch(() => ({}))) as { message?: string };
       alert(data.message || "Gagal membatalkan booking");
@@ -84,6 +101,13 @@ export default function AdminRoomsPage() {
     );
   }
 
+  // Collect all bookings across rooms
+  const allBookings = rooms.flatMap((r) => r.bookings);
+  const pendingBookings = allBookings.filter(
+    (b) => b.status === "pending_approval",
+  );
+  const activeBookings = allBookings.filter((b) => b.status === "approved");
+
   return (
     <main className="min-h-screen">
       <div className="relative overflow-hidden bg-gradient-to-br from-rose-50 via-white to-orange-50 border-b border-rose-100">
@@ -93,62 +117,142 @@ export default function AdminRoomsPage() {
             Admin Rooms
           </h1>
           <p className="mt-4 text-lg text-zinc-500 animate-fade-in-up stagger-1">
-            Kelola status Booking dan hapus ruangan
+            Kelola status Booking, Antrean, dan Approval
           </p>
+
+          {/* Stats */}
+          <div className="mt-8 inline-flex items-center gap-6 animate-fade-in stagger-2">
+            <div className="flex flex-col items-center px-5 py-3 rounded-2xl bg-white/70 backdrop-blur-md border border-zinc-200/60 shadow-sm">
+              <span className="text-2xl font-bold text-zinc-900">
+                {rooms.length}
+              </span>
+              <span className="text-xs text-zinc-500 mt-1">Total Ruangan</span>
+            </div>
+            <div className="flex flex-col items-center px-5 py-3 rounded-2xl bg-white/70 backdrop-blur-md border border-amber-200/60 shadow-sm">
+              <span className="text-2xl font-bold text-amber-600">
+                {pendingBookings.length}
+              </span>
+              <span className="text-xs text-zinc-500 mt-1">Menunggu Approval</span>
+            </div>
+            <div className="flex flex-col items-center px-5 py-3 rounded-2xl bg-white/70 backdrop-blur-md border border-emerald-200/60 shadow-sm">
+              <span className="text-2xl font-bold text-emerald-600">
+                {activeBookings.length}
+              </span>
+              <span className="text-xs text-zinc-500 mt-1">Booking Aktif</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 space-y-8">
+        {/* Pending Approvals Section */}
+        {pendingBookings.length > 0 && (
+          <div className="bg-amber-50/80 backdrop-blur-xl rounded-3xl border border-amber-200/60 shadow-2xl shadow-amber-100/50 overflow-hidden p-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-3 h-3 rounded-full bg-amber-500 animate-pulse" />
+              <h2 className="text-xl font-bold text-zinc-900">
+                Menunggu Persetujuan ({pendingBookings.length})
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {pendingBookings.map((booking) => {
+                const room = rooms.find((r) =>
+                  r.bookings.some((b) => b._id === booking._id),
+                );
+                return (
+                  <div
+                    key={booking._id}
+                    className="rounded-2xl border border-amber-200 bg-white p-5 card-hover"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-bold text-zinc-900">
+                        {room?.name}
+                      </span>
+                      <span className="booking-status booking-status--pending">
+                        Menunggu
+                      </span>
+                    </div>
+                    <p className="text-sm text-zinc-600">{booking.bookedFor}</p>
+                    <div className="mt-2 flex items-center gap-3 text-xs text-zinc-500">
+                      <span>👤 {booking.bookedBy}</span>
+                      <span>
+                        🕐{" "}
+                        {new Date(booking.bookingStart)
+                          .getHours()
+                          .toString()
+                          .padStart(2, "0")}
+                        .
+                        {new Date(booking.bookingStart)
+                          .getMinutes()
+                          .toString()
+                          .padStart(2, "0")}{" "}
+                        -{" "}
+                        {new Date(booking.bookingEnd)
+                          .getHours()
+                          .toString()
+                          .padStart(2, "0")}
+                        .
+                        {new Date(booking.bookingEnd)
+                          .getMinutes()
+                          .toString()
+                          .padStart(2, "0")}
+                      </span>
+                    </div>
+                    <div className="mt-4 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleApprove(booking._id)}
+                        className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-95"
+                      >
+                        ✓ Setujui
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleReject(booking._id)}
+                        className="flex-1 rounded-lg bg-rose-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-700 active:scale-95"
+                      >
+                        ✕ Tolak
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* All Rooms Grid */}
         <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-zinc-200/60 shadow-2xl shadow-rose-100/50 overflow-hidden">
           <RoomsGrid
             rooms={rooms}
             loading={loading}
-            onBook={async () => {}}
             showBookButton={false}
           />
 
-          {rooms.some((r) => r.booked) && (
+          {/* Booked rooms with cancel actions */}
+          {activeBookings.length > 0 && (
             <div className="px-8 pb-8">
               <p className="text-sm text-zinc-500 mb-3 font-medium">
-                Ruangan yang sedang dibooking:
+                Booking Aktif — Kelola antrean per ruangan:
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {rooms
-                  .filter((r) => r.booked)
+                  .filter((r) => r.bookings.length > 0)
                   .map((room) => (
                     <div
                       key={room._id || room.name}
-                      className="animate-slide-in-scale rounded-xl border border-rose-200 bg-rose-50/50 p-4 flex flex-col items-center text-center card-hover"
+                      className="rounded-2xl border border-zinc-200 bg-zinc-50/50 p-5"
                     >
-                      <h4 className="font-semibold text-zinc-900">
+                      <h4 className="font-semibold text-zinc-900 mb-3">
                         {room.name}
                       </h4>
-                      {room.bookedFor && (
-                        <p className="mt-1 text-xs text-zinc-500 line-clamp-2">
-                          {room.bookedFor}
-                        </p>
-                      )}
-                      {room.bookingStart && room.bookingEnd && (
-                        <p className="mt-1 text-[11px] text-zinc-500">
-                          {new Date(room.bookingStart).getHours()}.
-                          {new Date(room.bookingStart)
-                            .getMinutes()
-                            .toString()
-                            .padStart(2, "0")}{" "}
-                          - {new Date(room.bookingEnd).getHours()}.
-                          {new Date(room.bookingEnd)
-                            .getMinutes()
-                            .toString()
-                            .padStart(2, "0")}
-                        </p>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => handleCancelBook(room.name)}
-                        className="mt-3 rounded-lg bg-rose-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-700 active:scale-95"
-                      >
-                        Cancel Booking
-                      </button>
+                      <BookingList
+                        bookings={room.bookings}
+                        showActions={true}
+                        onApprove={handleApprove}
+                        onReject={handleReject}
+                        onCancel={handleCancelBooking}
+                      />
                     </div>
                   ))}
               </div>

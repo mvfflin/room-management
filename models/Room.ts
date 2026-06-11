@@ -1,11 +1,7 @@
 import mongoose, { Schema } from "mongoose";
 
 const RoomSchema = new Schema({
-  name: { type: String, required: true },
-  booked: { type: Boolean, required: true, default: false },
-  bookedFor: { type: String },
-  bookingStart: { type: Date },
-  bookingEnd: { type: Date },
+  name: { type: String, required: true, unique: true },
 });
 
 const Room = mongoose.models.Room || mongoose.model("Room", RoomSchema);

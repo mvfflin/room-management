@@ -97,6 +97,18 @@ body {
   }
 }
 
+@keyframes pulseDot {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.7;
+  }
+}
+
 .glass {
   @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-xl;
 }
@@ -123,6 +135,10 @@ body {
 
 .animate-slide-in-scale {
   animation: slideInScale 0.5s ease-out forwards;
+}
+
+.animate-pulse-soft {
+  animation: pulseDot 2s ease-in-out infinite;
 }
 
 .stagger-1 {
@@ -163,4 +179,128 @@ body {
 .stagger-8 {
   animation-delay: 0.8s;
   opacity: 0;
+}
+
+/* ===== Queue Badge Styles ===== */
+
+.queue-badge {
+  @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold tracking-wide;
+}
+
+.queue-badge--available {
+  @apply bg-emerald-100 text-emerald-700;
+}
+
+.queue-badge--queued {
+  @apply bg-amber-100 text-amber-700;
+}
+
+.queue-badge--full {
+  @apply bg-red-100 text-red-700;
+}
+
+.queue-dot {
+  @apply w-2 h-2 rounded-full shrink-0;
+}
+
+.queue-dot--green {
+  @apply bg-emerald-500;
+}
+
+.queue-dot--yellow {
+  @apply bg-amber-500;
+  animation: pulseDot 2s ease-in-out infinite;
+}
+
+.queue-dot--red {
+  @apply bg-red-500;
+  animation: pulseDot 1.5s ease-in-out infinite;
+}
+
+/* ===== Booking List Styles ===== */
+
+.booking-list {
+  @apply space-y-2 w-full;
+}
+
+.booking-item {
+  @apply rounded-lg border border-zinc-200/80 bg-white/80 px-3 py-2.5 text-left transition-all hover:border-zinc-300;
+}
+
+.booking-item__header {
+  @apply flex items-center justify-between mb-1;
+}
+
+.booking-item__position {
+  @apply text-[10px] font-bold text-zinc-400 uppercase tracking-wider;
+}
+
+.booking-item__purpose {
+  @apply text-xs text-zinc-700 font-medium line-clamp-1;
+}
+
+.booking-item__meta {
+  @apply flex items-center gap-2 mt-1 text-[10px] text-zinc-400;
+}
+
+.booking-item__user {
+  @apply truncate;
+}
+
+.booking-item__time {
+  @apply shrink-0;
+}
+
+.booking-item__actions {
+  @apply flex gap-1.5 mt-2 pt-2 border-t border-zinc-100;
+}
+
+/* ===== Booking Status Badges ===== */
+
+.booking-status {
+  @apply inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold;
+}
+
+.booking-status--approved {
+  @apply bg-emerald-100 text-emerald-700;
+}
+
+.booking-status--pending {
+  @apply bg-amber-100 text-amber-700;
+}
+
+.booking-status--rejected {
+  @apply bg-red-100 text-red-700;
+}
+
+/* ===== Action Buttons ===== */
+
+.btn-approve {
+  @apply flex-1 rounded-md bg-emerald-600 px-2 py-1 text-[10px] font-semibold text-white transition hover:bg-emerald-700 active:scale-95;
+}
+
+.btn-reject {
+  @apply flex-1 rounded-md bg-rose-600 px-2 py-1 text-[10px] font-semibold text-white transition hover:bg-rose-700 active:scale-95;
+}
+
+.btn-cancel {
+  @apply flex-1 rounded-md border border-zinc-300 bg-white px-2 py-1 text-[10px] font-semibold text-zinc-600 transition hover:bg-zinc-50 active:scale-95;
+}
+
+/* ===== Notification Styles ===== */
+
+.notification {
+  @apply flex items-center gap-3 px-5 py-4 rounded-2xl border text-sm font-medium;
+}
+
+.notification--success {
+  @apply bg-emerald-50 border-emerald-200 text-emerald-800;
+}
+
+.notification--warning {
+  @apply bg-amber-50 border-amber-200 text-amber-800;
+}
+
+.notification--error {
+  @apply bg-red-50 border-red-200 text-red-800;
 }

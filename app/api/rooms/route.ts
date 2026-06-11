@@ -1,21 +1,43 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/connectDB";
 import Room from "@/models/Room";
-
-async function releaseExpiredBookings() {
-  const now = new Date();
-  await Room.updateMany(
-    { booked: true, bookingEnd: { $lt: now } },
-    { booked: false, bookedFor: "", bookingStart: null, bookingEnd: null },
-  );
-}
+import Booking from "@/models/Booking";
 
 export async function GET() {
   try {
     await connectDB();
-    await releaseExpiredBookings();
     const rooms = await Room.find({});
-    return NextResponse.json(rooms);
+    const now = new Date();
+
+    // Ambil semua booking aktif (belum expired dan belum rejected)
+    const activeBookings = await Booking.find({
+      bookingEnd: { $gt: now },
+      status: { $ne: "rejected" },
+    }).sort({ bookingStart: 1, queuePosition: 1 });
+
+    // Gabungkan data room dengan info antrean
+    const roomsWithQueue = rooms.map((room) => {
+      const roomBookings = activeBookings.filter(
+        (b) => b.roomId.toString() === room._id.toString(),
+      );
+      return {
+        _id: room._id,
+        name: room.name,
+        queueCount: roomBookings.length,
+        bookings: roomBookings.map((b) => ({
+          _id: b._id,
+          bookedFor: b.bookedFor,
+          bookedBy: b.bookedBy,
+          bookingStart: b.bookingStart,
+          bookingEnd: b.bookingEnd,
+          queuePosition: b.queuePosition,
+          status: b.status,
+          needsApproval: b.needsApproval,
+        })),
+      };
+    });
+
+    return NextResponse.json(roomsWithQueue);
   } catch (error) {
     console.error("Error fetching rooms:", error);
     return NextResponse.json(
@@ -39,67 +61,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const room = await Room.create({ name, booked: false });
-    return NextResponse.json(room, { status: 201 });
+    const room = await Room.create({ name });
+    return NextResponse.json(
+      { _id: room._id, name: room.name, queueCount: 0, bookings: [] },
+      { status: 201 },
+    );
   } catch (error) {
     console.error("Error creating room:", error);
     return NextResponse.json(
       { message: "Gagal menambahkan ruangan" },
-      { status: 500 },
-    );
-  }
-}
-
-function parseTodayTime(time: string) {
-  if (!time) return undefined;
-  const [hours, minutes] = time.split(":").map(Number);
-  const date = new Date();
-  date.setHours(hours, minutes, 0, 0);
-  return date;
-}
-
-export async function PUT(request: Request) {
-  try {
-    await connectDB();
-    const body = await request.json();
-    const { name, booked, bookedFor, bookingStart, bookingEnd } = body;
-
-    if (!name) {
-      return NextResponse.json(
-        { message: "Nama ruangan wajib diisi" },
-        { status: 400 },
-      );
-    }
-
-    const room = await Room.findOne({ name });
-    if (!room) {
-      return NextResponse.json(
-        { message: "Ruangan tidak ditemukan" },
-        { status: 404 },
-      );
-    }
-
-    if (booked === true && bookingStart && bookingEnd) {
-      room.booked = true;
-      room.bookedFor = bookedFor ?? room.bookedFor;
-      room.bookingStart = parseTodayTime(bookingStart);
-      room.bookingEnd = parseTodayTime(bookingEnd);
-    } else if (booked === false) {
-      room.booked = false;
-      room.bookedFor = bookedFor ?? "";
-      room.bookingStart = null;
-      room.bookingEnd = null;
-    } else {
-      room.booked = booked ?? room.booked;
-      room.bookedFor = bookedFor ?? room.bookedFor;
-    }
-
-    await room.save();
-    return NextResponse.json(room);
-  } catch (error) {
-    console.error("Error updating room:", error);
-    return NextResponse.json(
-      { message: "Gagal memperbarui ruangan" },
       { status: 500 },
     );
   }
@@ -116,6 +86,12 @@ export async function DELETE(request: Request) {
         { message: "Nama ruangan wajib diisi" },
         { status: 400 },
       );
+    }
+
+    const room = await Room.findOne({ name });
+    if (room) {
+      // Hapus juga semua booking terkait
+      await Booking.deleteMany({ roomId: room._id });
     }
 
     await Room.deleteOne({ name });

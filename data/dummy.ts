@@ -39,7 +39,13 @@ export const users = [
     username: "guru",
     password: "guru",
     name: "Guru",
-    role: "admin",
+    role: "guru",
+  },
+  {
+    username: "ketua_ekskul",
+    password: "ketua",
+    name: "Ketua Ekskul",
+    role: "ketua_ekskul",
   },
   {
     username: "user",

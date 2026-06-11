@@ -1,14 +1,44 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
   const { data: session, status } = useSession();
   const role = (session?.user as any)?.role;
-  const isAdmin = session?.user?.name === "admin";
+  const isAdmin = role === "admin";
+  const isAdminOrGuru = role === "admin" || role === "guru";
+
+  // Fetch pending approval count for admin badge
+  useEffect(() => {
+    if (!isAdminOrGuru) return;
+
+    const fetchPending = async () => {
+      try {
+        const res = await fetch("/api/rooms");
+        if (!res.ok) return;
+        const rooms = await res.json();
+        const count = rooms.reduce(
+          (acc: number, r: any) =>
+            acc +
+            (r.bookings?.filter(
+              (b: any) => b.status === "pending_approval",
+            ).length || 0),
+          0,
+        );
+        setPendingCount(count);
+      } catch {
+        // ignore
+      }
+    };
+
+    fetchPending();
+    const interval = setInterval(fetchPending, 30000);
+    return () => clearInterval(interval);
+  }, [isAdminOrGuru]);
 
   return (
     <nav className="bg-[#1e1f22] text-gray-200 border-b border-gray-800 fixed w-full top-0 z-50">
@@ -54,6 +84,22 @@ export default function Navbar() {
                   Buat Ruangan
                 </Link>
               </>
+            )}
+
+            {isAdminOrGuru && (
+              <Link
+                href="/admin/approvals"
+                className="nav-link relative px-4 py-2 text-gray-300 hover:text-white transition-colors duration-300"
+              >
+                <span className="flex items-center gap-1.5">
+                  Approval
+                  {pendingCount > 0 && (
+                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-[10px] font-bold text-white animate-pulse">
+                      {pendingCount}
+                    </span>
+                  )}
+                </span>
+              </Link>
             )}
 
             {status === "loading" ? (
@@ -197,6 +243,21 @@ export default function Navbar() {
                   Buat Ruangan
                 </Link>
               </>
+            )}
+
+            {isAdminOrGuru && (
+              <Link
+                href="/admin/approvals"
+                className="flex items-center gap-2 text-gray-300 hover:text-white hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium transition-colors"
+                onClick={() => setIsOpen(false)}
+              >
+                Approval
+                {pendingCount > 0 && (
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-[10px] font-bold text-white">
+                    {pendingCount}
+                  </span>
+                )}
+              </Link>
             )}
 
             <div className="pt-2 px-3">
