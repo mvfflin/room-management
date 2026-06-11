@@ -7,7 +7,7 @@ const BookingSchema = new Schema({
   bookedBy: { type: String, required: true },
   bookingStart: { type: Date, required: true },
   bookingEnd: { type: Date, required: true },
-  queuePosition: { type: Number, required: true, min: 1, max: 3 },
+  queuePosition: { type: Number, required: true, min: 1 },
   status: {
     type: String,
     enum: ["approved", "pending_approval", "rejected"],

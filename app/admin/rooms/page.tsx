@@ -160,7 +160,7 @@ export default function AdminRoomsPage() {
   const closedRooms = rooms.filter((r) => r.isClosed);
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen h-full h-max">
       <div className="relative overflow-hidden bg-gradient-to-br from-rose-50 via-white to-orange-50 border-b border-rose-100">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-rose-200/40 via-transparent to-transparent" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
@@ -258,26 +258,16 @@ export default function AdminRoomsPage() {
                     <div className="mt-2 flex items-center gap-3 text-xs text-zinc-500">
                       <span>👤 {booking.bookedBy}</span>
                       <span>
-                        🕐{" "}
-                        {new Date(booking.bookingStart)
-                          .getHours()
-                          .toString()
-                          .padStart(2, "0")}
+                        📅{" "}
+                        {new Date(booking.bookingStart).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
+                        {" · "}🕐{" "}
+                        {new Date(booking.bookingStart).getHours().toString().padStart(2, "0")}
                         .
-                        {new Date(booking.bookingStart)
-                          .getMinutes()
-                          .toString()
-                          .padStart(2, "0")}{" "}
-                        -{" "}
-                        {new Date(booking.bookingEnd)
-                          .getHours()
-                          .toString()
-                          .padStart(2, "0")}
+                        {new Date(booking.bookingStart).getMinutes().toString().padStart(2, "0")}
+                        {" "}-{" "}
+                        {new Date(booking.bookingEnd).getHours().toString().padStart(2, "0")}
                         .
-                        {new Date(booking.bookingEnd)
-                          .getMinutes()
-                          .toString()
-                          .padStart(2, "0")}
+                        {new Date(booking.bookingEnd).getMinutes().toString().padStart(2, "0")}
                       </span>
                     </div>
                     <div className="mt-4 flex gap-2">

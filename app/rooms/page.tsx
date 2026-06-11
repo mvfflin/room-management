@@ -74,6 +74,7 @@ export default function RoomsPage() {
     bookedFor: string,
     startTime: string,
     endTime: string,
+    bookingDate: string,
   ) => {
     const username =
       (session?.user as any)?.username || session?.user?.name || "anonymous";
@@ -87,6 +88,7 @@ export default function RoomsPage() {
         bookedBy: username,
         bookingStart: startTime,
         bookingEnd: endTime,
+        bookingDate,
       }),
     });
 

@@ -45,10 +45,10 @@ export async function GET(request: Request) {
   }
 }
 
-function parseTodayTime(time: string): Date {
+function parseDateTime(dateStr: string, time: string): Date {
+  const [year, month, day] = dateStr.split("-").map(Number);
   const [hours, minutes] = time.split(":").map(Number);
-  const date = new Date();
-  date.setHours(hours, minutes, 0, 0);
+  const date = new Date(year, month - 1, day, hours, minutes, 0, 0);
   return date;
 }
 
@@ -81,14 +81,14 @@ export async function POST(request: Request) {
 
     await connectDB();
     const body = await request.json();
-    const { roomName, bookedFor, bookedBy, bookingStart, bookingEnd } = body;
+    const { roomName, bookedFor, bookedBy, bookingStart, bookingEnd, bookingDate } = body;
 
     // Validasi input
-    if (!roomName || !bookedFor || !bookedBy || !bookingStart || !bookingEnd) {
+    if (!roomName || !bookedFor || !bookedBy || !bookingStart || !bookingEnd || !bookingDate) {
       return NextResponse.json(
         {
           message:
-            "Semua field wajib diisi (roomName, bookedFor, bookedBy, bookingStart, bookingEnd)",
+            "Semua field wajib diisi (roomName, bookedFor, bookedBy, bookingStart, bookingEnd, bookingDate)",
         },
         { status: 400 },
       );
@@ -103,12 +103,21 @@ export async function POST(request: Request) {
       );
     }
 
-    const start = parseTodayTime(bookingStart);
-    const end = parseTodayTime(bookingEnd);
+    const start = parseDateTime(bookingDate, bookingStart);
+    const end = parseDateTime(bookingDate, bookingEnd);
 
     if (end <= start) {
       return NextResponse.json(
         { message: "Jam selesai harus lebih besar dari jam mulai" },
+        { status: 400 },
+      );
+    }
+
+    // Cek apakah tanggal booking sudah lewat
+    const now = new Date();
+    if (end <= now) {
+      return NextResponse.json(
+        { message: "Tidak dapat membuat booking untuk waktu yang sudah lewat" },
         { status: 400 },
       );
     }
@@ -132,7 +141,26 @@ export async function POST(request: Request) {
       );
     }
 
-    // Cari booking yang overlap pada slot waktu yang sama
+    // Cari booking yang sudah APPROVED dan overlap pada slot waktu yang sama
+    const approvedOverlapping = await Booking.find({
+      roomId: room._id,
+      status: "approved",
+      bookingEnd: { $gt: start },
+      bookingStart: { $lt: end },
+    });
+
+    // Jika sudah ada booking yang disetujui di waktu yang sama, tolak
+    if (approvedOverlapping.length > 0) {
+      return NextResponse.json(
+        {
+          message:
+            "Slot waktu ini sudah memiliki booking yang disetujui. Silakan pilih waktu atau tanggal lain.",
+        },
+        { status: 409 },
+      );
+    }
+
+    // Cari semua booking (termasuk pending) yang overlap
     const overlappingBookings = await Booking.find({
       roomId: room._id,
       status: { $ne: "rejected" },
@@ -140,12 +168,13 @@ export async function POST(request: Request) {
       bookingStart: { $lt: end },
     }).sort({ bookingStart: 1, queuePosition: 1 });
 
-    // Cek batas maksimal 3 antrean
-    if (overlappingBookings.length >= 3) {
+    // Cek batas maksimal antrean (sesuai pengaturan ruangan)
+    const maxQueue = room.maxQueue ?? 3;
+    if (overlappingBookings.length >= maxQueue) {
       return NextResponse.json(
         {
           message:
-            "Slot waktu ini sudah penuh (maksimal 3 antrean). Silakan pilih waktu lain.",
+            `Slot waktu ini sudah penuh (maksimal ${maxQueue} antrean). Silakan pilih waktu lain.`,
         },
         { status: 409 },
       );

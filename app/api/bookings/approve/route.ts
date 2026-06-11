@@ -62,6 +62,28 @@ export async function PUT(request: Request) {
       );
     }
 
+    // Jika action adalah approve, cek apakah ada booking lain yang sudah approved
+    // dan overlap di waktu yang sama
+    if (action === "approve") {
+      const approvedOverlapping = await Booking.find({
+        _id: { $ne: booking._id },
+        roomId: booking.roomId,
+        status: "approved",
+        bookingEnd: { $gt: booking.bookingStart },
+        bookingStart: { $lt: booking.bookingEnd },
+      });
+
+      if (approvedOverlapping.length > 0) {
+        return NextResponse.json(
+          {
+            message:
+              "Tidak dapat menyetujui — sudah ada booking lain yang disetujui di slot waktu yang sama.",
+          },
+          { status: 409 },
+        );
+      }
+    }
+
     booking.status = action === "approve" ? "approved" : "rejected";
     booking.needsApproval = false;
     await booking.save();

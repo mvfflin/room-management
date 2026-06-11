@@ -24,6 +24,14 @@ function formatTime(dateStr: string) {
   return `${d.getHours().toString().padStart(2, "0")}.${d.getMinutes().toString().padStart(2, "0")}`;
 }
 
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; className: string }> = {
     approved: {
@@ -66,7 +74,7 @@ export default function BookingList({
           <div className="booking-item__meta">
             <span className="booking-item__user">👤 {booking.bookedBy}</span>
             <span className="booking-item__time">
-              🕐 {formatTime(booking.bookingStart)} - {formatTime(booking.bookingEnd)}
+              📅 {formatDate(booking.bookingStart)} · 🕐 {formatTime(booking.bookingStart)} - {formatTime(booking.bookingEnd)}
             </span>
           </div>
           {showActions && (

@@ -27,6 +27,14 @@ function formatTime(dateStr: string) {
   return `${d.getHours().toString().padStart(2, "0")}.${d.getMinutes().toString().padStart(2, "0")}`;
 }
 
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
 export default function ApprovalsPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
@@ -265,7 +273,7 @@ export default function ApprovalsPage() {
                     <div className="flex items-center gap-3 mt-1 text-xs text-zinc-400">
                       <span>👤 {booking.bookedBy}</span>
                       <span>
-                        🕐 {formatTime(booking.bookingStart)} -{" "}
+                        📅 {formatDate(booking.bookingStart)} · 🕐 {formatTime(booking.bookingStart)} -{" "}
                         {formatTime(booking.bookingEnd)}
                       </span>
                     </div>

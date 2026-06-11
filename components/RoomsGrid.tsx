@@ -3,6 +3,8 @@
 import { useState } from "react";
 import QueueBadge from "./QueueBadge";
 import BookingList from "./BookingList";
+import DatePicker from "./DatePicker";
+import TimePicker from "./TimePicker";
 
 type BookingItem = {
   _id: string;
@@ -18,6 +20,7 @@ type BookingItem = {
 type Room = {
   _id?: string;
   name: string;
+  maxQueue?: number;
   isClosed?: boolean;
   closedReason?: string;
   queueCount: number;
@@ -32,6 +35,7 @@ type GridProps = {
     bookedFor: string,
     startTime: string,
     endTime: string,
+    bookingDate: string,
   ) => void | Promise<void>;
   showBookButton?: boolean;
   isAdminOrGuru?: boolean;
@@ -42,7 +46,7 @@ type GridProps = {
   ) => void | Promise<void>;
 };
 
-function getCardStyle(queueCount: number, isClosed?: boolean) {
+function getCardStyle(queueCount: number, maxQueue: number, isClosed?: boolean) {
   if (isClosed) {
     return {
       border: "border-slate-300",
@@ -59,7 +63,7 @@ function getCardStyle(queueCount: number, isClosed?: boolean) {
       dotRing: "ring-emerald-100",
     };
   }
-  if (queueCount >= 3) {
+  if (queueCount >= maxQueue) {
     return {
       border: "border-red-300",
       bg: "bg-red-50/30",
@@ -102,8 +106,9 @@ export function RoomsGrid({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-8">
       {rooms.map((room, index) => {
-        const style = getCardStyle(room.queueCount, room.isClosed);
-        const isFull = room.queueCount >= 3;
+        const roomMaxQueue = room.maxQueue ?? 3;
+        const style = getCardStyle(room.queueCount, roomMaxQueue, room.isClosed);
+        const isFull = room.queueCount >= roomMaxQueue;
         const isClosed = room.isClosed || false;
 
         return (
@@ -121,7 +126,7 @@ export function RoomsGrid({
 
               <div className="flex flex-col items-center text-center">
                 {/* Queue badge */}
-                <QueueBadge queueCount={room.queueCount} isClosed={isClosed} />
+                <QueueBadge queueCount={room.queueCount} maxQueue={roomMaxQueue} isClosed={isClosed} />
 
                 <h3 className={`mt-4 text-lg font-bold ${isClosed ? "text-zinc-400" : "text-zinc-900"}`}>
                   {room.name}
@@ -273,6 +278,7 @@ type BookFormProps = {
     bookedFor: string,
     startTime: string,
     endTime: string,
+    bookingDate: string,
   ) => void | Promise<void>;
 };
 
@@ -281,10 +287,17 @@ function BookForm({ room, onBook }: BookFormProps) {
   const [bookedFor, setBookedFor] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
+  const [bookingDate, setBookingDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split("T")[0];
+  });
 
   if (!onBook) return null;
 
   const hasQueue = room.queueCount > 0;
+
+  // Min date = today
+  const minDate = new Date().toISOString().split("T")[0];
 
   if (bookingRoom !== room.name) {
     return (
@@ -306,11 +319,12 @@ function BookForm({ room, onBook }: BookFormProps) {
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        if (!bookedFor.trim() || !startTime || !endTime) return;
-        onBook(room.name, bookedFor.trim(), startTime, endTime);
+        if (!bookedFor.trim() || !startTime || !endTime || !bookingDate) return;
+        onBook(room.name, bookedFor.trim(), startTime, endTime, bookingDate);
         setBookedFor("");
         setStartTime("");
         setEndTime("");
+        setBookingDate(minDate);
         setBookingRoom(null);
       }}
       className="w-full space-y-2"
@@ -325,33 +339,50 @@ function BookForm({ room, onBook }: BookFormProps) {
         value={bookedFor}
         onChange={(e) => setBookedFor(e.target.value)}
         placeholder="Keperluan booking..."
-        className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+        className="w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all"
         required
       />
-      <div className="grid grid-cols-2 gap-2">
-        <input
-          type="time"
-          value={startTime}
-          onChange={(e) => setStartTime(e.target.value)}
-          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-          required
-        />
-        <input
-          type="time"
-          value={endTime}
-          onChange={(e) => setEndTime(e.target.value)}
-          min={startTime || undefined}
-          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-          required
+      <div>
+        <label className="block text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">
+          Tanggal
+        </label>
+        <DatePicker
+          value={bookingDate}
+          onChange={(val) => setBookingDate(val)}
+          min={minDate}
+          placeholder="Pilih tanggal booking"
         />
       </div>
-      <div className="flex gap-2">
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="block text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">
+            Jam Mulai
+          </label>
+          <TimePicker
+            value={startTime}
+            onChange={(val) => setStartTime(val)}
+            placeholder="Mulai"
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">
+            Jam Selesai
+          </label>
+          <TimePicker
+            value={endTime}
+            onChange={(val) => setEndTime(val)}
+            min={startTime || undefined}
+            placeholder="Selesai"
+          />
+        </div>
+      </div>
+      <div className="flex gap-2 pt-1">
         <button
           type="submit"
-          disabled={!bookedFor.trim() || !startTime || !endTime}
-          className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={!bookedFor.trim() || !startTime || !endTime || !bookingDate}
+          className="flex-1 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
         >
-          {hasQueue ? "Masuk Antrean" : "Pesan"}
+          {hasQueue ? "Masuk Antrean" : "✓ Pesan Sekarang"}
         </button>
         <button
           type="button"
@@ -360,8 +391,9 @@ function BookForm({ room, onBook }: BookFormProps) {
             setBookedFor("");
             setStartTime("");
             setEndTime("");
+            setBookingDate(minDate);
           }}
-          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:bg-zinc-50"
+          className="rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm font-semibold text-zinc-600 shadow-sm transition hover:bg-zinc-50 active:scale-95"
         >
           Batal
         </button>

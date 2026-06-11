@@ -23,6 +23,7 @@ export async function GET() {
       return {
         _id: room._id,
         name: room.name,
+        maxQueue: room.maxQueue ?? 3,
         isClosed: room.isClosed || false,
         closedReason: room.closedReason || "",
         queueCount: roomBookings.length,
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
   try {
     await connectDB();
     const body = await request.json();
-    const { name } = body;
+    const { name, maxQueue } = body;
 
     const exists = await Room.findOne({ name });
     if (exists) {
@@ -63,9 +64,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const room = await Room.create({ name });
+    const room = await Room.create({
+      name,
+      maxQueue: maxQueue && maxQueue >= 1 ? maxQueue : 3,
+    });
     return NextResponse.json(
-      { _id: room._id, name: room.name, queueCount: 0, bookings: [] },
+      { _id: room._id, name: room.name, maxQueue: room.maxQueue, queueCount: 0, bookings: [] },
       { status: 201 },
     );
   } catch (error) {
@@ -105,6 +109,58 @@ export async function DELETE(request: Request) {
     console.error("Error deleting room:", error);
     return NextResponse.json(
       { message: "Gagal menghapus ruangan" },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * PATCH /api/rooms?name=xxx
+ * Update pengaturan ruangan (maxQueue)
+ */
+export async function PATCH(request: Request) {
+  try {
+    await connectDB();
+    const body = await request.json();
+    const { name, maxQueue } = body;
+
+    if (!name) {
+      return NextResponse.json(
+        { message: "Nama ruangan wajib diisi" },
+        { status: 400 },
+      );
+    }
+
+    if (maxQueue !== undefined && (typeof maxQueue !== "number" || maxQueue < 1)) {
+      return NextResponse.json(
+        { message: "Maksimal antrean harus minimal 1" },
+        { status: 400 },
+      );
+    }
+
+    const room = await Room.findOne({ name });
+    if (!room) {
+      return NextResponse.json(
+        { message: "Ruangan tidak ditemukan" },
+        { status: 404 },
+      );
+    }
+
+    if (maxQueue !== undefined) {
+      room.maxQueue = maxQueue;
+    }
+
+    await room.save();
+
+    return NextResponse.json({
+      _id: room._id,
+      name: room.name,
+      maxQueue: room.maxQueue,
+    });
+  } catch (error) {
+    console.error("Error updating room:", error);
+    return NextResponse.json(
+      { message: "Gagal memperbarui pengaturan ruangan" },
       { status: 500 },
     );
   }
